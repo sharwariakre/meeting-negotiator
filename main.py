@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 from dotenv import load_dotenv
@@ -7,13 +8,16 @@ from src.state import MeetingState
 load_dotenv()
 
 
-def load_profiles(path: str = "data/profiles.json") -> dict:
+def load_profiles(path: str) -> dict:
     with open(path, "r") as f:
         return json.load(f)
 
 
 def main():
-    data = load_profiles()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profiles", default="data/profiles.json")
+    args = parser.parse_args()
+    data = load_profiles(args.profiles)
 
     initial_state: MeetingState = {
         "messages": [],
