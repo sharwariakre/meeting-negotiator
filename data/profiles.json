@@ -1,0 +1,29 @@
+{
+  "participants": [
+    {
+      "id": "participant_1",
+      "name": "Alice",
+      "availability": ["Monday 9-11am", "Wednesday 2-4pm", "Friday 10am-12pm"],
+      "preferences": {
+        "preferred_duration_minutes": 60,
+        "preferred_times": ["morning"],
+        "constraints": ["no early mornings before 9am", "no late evenings after 6pm"]
+      }
+    },
+    {
+      "id": "participant_2",
+      "name": "Bob",
+      "availability": ["Monday 10am-12pm", "Tuesday 1-3pm", "Wednesday 3-5pm"],
+      "preferences": {
+        "preferred_duration_minutes": 45,
+        "preferred_times": ["afternoon"],
+        "constraints": ["no Fridays", "prefer virtual meetings"]
+      }
+    }
+  ],
+  "meeting": {
+    "title": "Project Kickoff",
+    "required_duration_minutes": 60,
+    "required_participants": ["participant_1", "participant_2"]
+  }
+}
