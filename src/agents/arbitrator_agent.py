@@ -210,10 +210,19 @@ def arbitrator_agent(state: MeetingState) -> MeetingState:
     consensus_reached = _CONSENSUS_MARKER in content
 
     if consensus_reached:
+        # Best-effort: find the overlap whose day name appears first in the LLM response
+        chosen_slot = next(
+            (o for o in verified_overlaps if o["day"].lower() in content.lower()),
+            verified_overlaps[0] if verified_overlaps else None,
+        )
         return {
             **state,
             "round_count": round_count,
-            "agreed_slot": {"resolution": content, "verified_overlaps": verified_overlaps},
+            "agreed_slot": {
+                "resolution": content,
+                "verified_overlaps": verified_overlaps,
+                "chosen_slot": chosen_slot,
+            },
             "counteroffer_reasoning": None,
             "status": "consensus",
             "messages": state["messages"] + [response],

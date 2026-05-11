@@ -171,6 +171,39 @@ Scheduling Assistant
 
 ---
 
+## Google Calendar integration
+
+Real availability can be fetched directly from Google Calendar instead of using static `profiles.json` slots.
+
+### Get credentials.json
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Library**
+2. Enable the **Google Calendar API**
+3. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth 2.0 Client ID**
+4. Application type: **Desktop app**
+5. Download the JSON and save it as `credentials.json` in the project root
+
+### Run with live calendar data
+
+```bash
+python3 main.py --use-calendar
+```
+
+On first run, a browser window opens **twice** — once for each participant account. Each person logs in and grants calendar access. Tokens are saved as `token_alice.json` and `token_bob.json` locally. Subsequent runs use the saved tokens and refresh them automatically.
+
+After consensus, the agreed slot is written as a real calendar event and attendees receive invites.
+
+### Token files
+
+`credentials.json` and `token_*.json` are listed in `.gitignore` and must never be committed.
+
+### What it does
+
+- `get_free_slots` queries the freebusy API for the next 7 days within working hours (9am–6pm), inverts busy periods to find free windows, snaps to integer-hour boundaries, and returns strings in the same format as `profiles.json` so the rest of the pipeline is unchanged.
+- `create_event` parses the agreed slot label back into a concrete datetime, anchors the day name to the actual upcoming date, and creates the event with all participants as attendees.
+
+---
+
 ## Tech stack
 
 | Component | Library |
@@ -187,13 +220,17 @@ Scheduling Assistant
 
 ```
 meeting-negotiator/
-├── main.py                        # entry point, --profiles argument
+├── main.py                        # entry point, --profiles / --use-calendar
+├── credentials.json               # OAuth client secret (not committed)
+├── token_alice.json               # saved token per account (not committed)
+├── token_bob.json
 ├── data/
 │   ├── profiles.json              # default: overlapping availability
 │   └── profiles_conflict.json     # test: zero overlap, forces escalation
 └── src/
     ├── state.py                   # MeetingState TypedDict
     ├── graph.py                   # LangGraph workflow definition
+    ├── calendar_client.py         # Google Calendar OAuth + freebusy + event creation
     └── agents/
         ├── preference_agent.py    # per-participant advocate (factory)
         ├── arbitrator_agent.py    # deterministic overlap + LLM resolution

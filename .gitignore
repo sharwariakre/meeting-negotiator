@@ -1,6 +1,10 @@
 # Environment
 .env
 
+# Google Calendar OAuth credentials — never commit these
+credentials.json
+token_*.json
+
 # Python
 __pycache__/
 *.py[cod]
