@@ -3,42 +3,85 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
 from src.state import MeetingState
 
+_CONSENSUS_MARKER = "CONSENSUS: YES"
+_NO_CONSENSUS_MARKER = "CONSENSUS: NO"
+
 
 def arbitrator_agent(state: MeetingState) -> MeetingState:
-    """Proposes meeting slots by arbitrating between participant preferences."""
+    """
+    Compares both proposals and either finds consensus or issues a counteroffer.
+    Sets status to 'consensus', 'negotiating', or 'escalated'.
+    Increments round_count each time it runs.
+    """
     model = ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"))
 
-    preferences = state.get("extracted_preferences", {})
-    round_num = state.get("negotiation_round", 0) + 1
-    prior_slots = state.get("proposed_slots") or []
+    proposal_a = state.get("proposal_a") or {}
+    proposal_b = state.get("proposal_b") or {}
+    meeting = state["meeting_request"]
+    round_count = state.get("round_count", 0) + 1
 
-    prior_context = ""
-    if prior_slots:
-        prior_context = f"\nPreviously proposed slots (rejected): {prior_slots}\n"
+    def format_proposal(p: dict) -> str:
+        if not p:
+            return "No proposal received."
+        return (
+            f"Participant: {p.get('name')} | Role: {p.get('role')} | "
+            f"Seniority: {p.get('seniority')} | Round: {p.get('round', 0)}\n"
+            f"Proposed slots:\n{p.get('slots', 'None')}"
+        )
 
     response = model.invoke([
         SystemMessage(content=(
-            "You are a neutral meeting arbitrator. Given participant availability analysis, "
-            "propose up to 3 concrete meeting time slots ranked by suitability. "
-            "Avoid previously rejected slots. Respond with a JSON list of slot objects "
-            "with keys: day, time, duration_minutes, rationale."
+            "You are a neutral meeting arbitrator. Your task each round:\n"
+            "1. Check whether any slot appears in BOTH proposals (same day and overlapping time).\n"
+            "2. If overlap exists: output exactly the line 'CONSENSUS: YES' on its own line, "
+            "then name the agreed slot and briefly explain why it works for both.\n"
+            "3. If no overlap exists: output exactly the line 'CONSENSUS: NO' on its own line, "
+            "then write a counteroffer addressed to both participants. Be specific about "
+            "who should flex, which constraint they should relax, and why — using their "
+            "seniority and context as justification. Keep this under 5 sentences.\n"
+            "Be decisive. Do not hedge. Seniority and meeting ownership are legitimate factors."
         )),
         HumanMessage(content=(
-            f"Round {round_num} of negotiation.\n"
-            f"Preference summary:\n{preferences.get('summary', '')}"
-            f"{prior_context}"
-            "\nPropose the best available meeting slots."
+            f"Meeting: {meeting['title']} ({meeting['required_duration_minutes']} min)\n"
+            f"Arbitration round: {round_count}\n\n"
+            f"--- Proposal A ---\n{format_proposal(proposal_a)}\n\n"
+            f"--- Proposal B ---\n{format_proposal(proposal_b)}\n\n"
+            "Determine whether consensus exists. Follow the output format exactly."
         )),
     ])
 
-    proposed = [{"raw": response.content, "round": round_num}]
+    content = response.content
+    consensus_reached = _CONSENSUS_MARKER in content
 
-    new_status = "agreed" if round_num >= 3 else "negotiating"
+    if consensus_reached:
+        return {
+            **state,
+            "round_count": round_count,
+            "agreed_slot": {"resolution": content},
+            "counteroffer_reasoning": None,
+            "status": "consensus",
+            "messages": state["messages"] + [response],
+        }
+
+    # No consensus — escalate if rounds exhausted, otherwise issue counteroffer
+    if round_count >= 3:
+        escalation = (
+            f"After {round_count} rounds of negotiation, no consensus was reached.\n\n"
+            f"Final arbitrator assessment:\n{content}"
+        )
+        return {
+            **state,
+            "round_count": round_count,
+            "agreed_slot": {"resolution": escalation},
+            "counteroffer_reasoning": content,
+            "status": "escalated",
+            "messages": state["messages"] + [response],
+        }
 
     return {
         **state,
-        "proposed_slots": proposed,
-        "negotiation_round": round_num,
-        "status": new_status,
+        "round_count": round_count,
+        "counteroffer_reasoning": content,
+        "status": "negotiating",
         "messages": state["messages"] + [response],
     }

@@ -5,32 +5,48 @@ from src.state import MeetingState
 
 
 def communication_agent(state: MeetingState) -> MeetingState:
-    """Drafts participant-facing messages summarizing the negotiation outcome."""
+    """Drafts the final participant-facing message for consensus or escalation outcomes."""
     model = ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"))
 
-    slots = state.get("proposed_slots") or []
-    slot_text = slots[-1].get("raw", "No slot proposed.") if slots else "No slot proposed."
+    status = state.get("status", "consensus")
+    resolution = (state.get("agreed_slot") or {}).get("resolution", "No resolution available.")
     names = [p["name"] for p in state.get("participants", [])]
     meeting_title = state.get("meeting_request", {}).get("title", "the meeting")
+    round_count = state.get("round_count", 0)
 
-    response = model.invoke([
-        SystemMessage(content=(
-            "You are a professional scheduling assistant. Write a clear, friendly message "
-            "to meeting participants confirming the agreed time or explaining next steps."
-        )),
-        HumanMessage(content=(
+    if status == "escalated":
+        system_prompt = (
+            "You are a professional scheduling assistant. The automated negotiation failed to reach "
+            "consensus after multiple rounds. Write a brief, professional message to the participants "
+            "informing them that human intervention is needed to schedule this meeting. "
+            "Summarize what was attempted without blame. Suggest they coordinate directly or involve a manager."
+        )
+        user_prompt = (
             f"Participants: {', '.join(names)}\n"
             f"Meeting: {meeting_title}\n"
-            f"Proposed slot details:\n{slot_text}\n\n"
+            f"Rounds attempted: {round_count}\n"
+            f"Final arbitrator notes:\n{resolution}\n\n"
+            "Write the escalation message."
+        )
+    else:
+        system_prompt = (
+            "You are a professional scheduling assistant. Write a clear, friendly message "
+            "confirming the agreed meeting time to all participants."
+        )
+        user_prompt = (
+            f"Participants: {', '.join(names)}\n"
+            f"Meeting: {meeting_title}\n"
+            f"Arbitration resolution:\n{resolution}\n\n"
             "Write a short confirmation message to send to all participants."
-        )),
-    ])
+        )
 
-    agreed_slot = {"summary": slot_text, "message": response.content}
+    response = model.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt),
+    ])
 
     return {
         **state,
-        "agreed_slot": agreed_slot,
-        "status": "agreed",
+        "agreed_slot": {"resolution": resolution, "message": response.content},
         "messages": state["messages"] + [response],
     }

@@ -19,11 +19,12 @@ def main():
         "messages": [],
         "participants": data["participants"],
         "meeting_request": data["meeting"],
-        "extracted_preferences": None,
-        "proposed_slots": None,
+        "proposal_a": None,
+        "proposal_b": None,
         "agreed_slot": None,
-        "negotiation_round": 0,
-        "status": "collecting",
+        "round_count": 0,
+        "counteroffer_reasoning": None,
+        "status": "negotiating",
     }
 
     graph = build_graph()
@@ -35,10 +36,11 @@ def main():
 
     print("\n=== Negotiation Complete ===")
     print(f"Status: {result['status']}")
-    print(f"Rounds: {result['negotiation_round']}")
+    print(f"Rounds: {result['round_count']}")
 
     if result.get("agreed_slot"):
-        print("\n--- Confirmation Message ---")
+        label = "Confirmation" if result["status"] == "consensus" else "Escalation Notice"
+        print(f"\n--- {label} ---")
         print(result["agreed_slot"].get("message", "No message generated."))
 
 

@@ -1,8 +1,11 @@
 {
   "participants": [
     {
-      "id": "participant_1",
+      "id": "A",
       "name": "Alice",
+      "role": "Engineering Manager",
+      "seniority": "senior",
+      "context": "Leading the project, has final say on technical direction. Very limited availability due to cross-team commitments.",
       "availability": ["Monday 9-11am", "Wednesday 2-4pm", "Friday 10am-12pm"],
       "preferences": {
         "preferred_duration_minutes": 60,
@@ -11,8 +14,11 @@
       }
     },
     {
-      "id": "participant_2",
+      "id": "B",
       "name": "Bob",
+      "role": "Software Engineer",
+      "seniority": "junior",
+      "context": "New team member onboarding. Flexible schedule but prefers afternoons for deep work mornings.",
       "availability": ["Monday 10am-12pm", "Tuesday 1-3pm", "Wednesday 3-5pm"],
       "preferences": {
         "preferred_duration_minutes": 45,
@@ -24,6 +30,6 @@
   "meeting": {
     "title": "Project Kickoff",
     "required_duration_minutes": 60,
-    "required_participants": ["participant_1", "participant_2"]
+    "required_participants": ["A", "B"]
   }
 }
