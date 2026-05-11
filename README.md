@@ -1,5 +1,7 @@
 # Meeting Negotiator
 
+![Tests](https://github.com/sharwariakre/meeting-negotiator/actions/workflows/tests.yml/badge.svg)
+
 A multi-agent LangGraph system that autonomously negotiates meeting times between participants, reasoning about seniority, preferences, and constraints the way a skilled executive assistant would.
 
 ---
