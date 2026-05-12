@@ -1,6 +1,12 @@
 # Meeting Negotiator
 
 ![Tests](https://github.com/sharwariakre/meeting-negotiator/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-1.1-1C3C3C?logo=langchain&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1.2-1C3C3C?logo=langchain&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-Llama3.1-black?logo=ollama&logoColor=white)
+![Google Calendar](https://img.shields.io/badge/Google_Calendar-API-4285F4?logo=googlecalendar&logoColor=white)
+![pytest](https://img.shields.io/badge/pytest-passing-0A9EDC?logo=pytest&logoColor=white)
 
 A multi-agent LangGraph system that autonomously negotiates meeting times between participants, reasoning about seniority, preferences, and constraints the way a skilled executive assistant would.
 
@@ -212,6 +218,9 @@ After consensus, the agreed slot is written as a real calendar event and attende
 | LLM interface | [LangChain](https://github.com/langchain-ai/langchain) |
 | Local model serving | [Ollama](https://ollama.com) via `langchain-ollama` |
 | Model | Llama 3.1 8B (configurable via `OLLAMA_MODEL` in `.env`) |
+| Calendar API | Google Calendar v3 via `google-api-python-client` |
+| OAuth2 | `google-auth`, `google-auth-oauthlib` |
+| Testing | pytest (mocked LLM, no Ollama required) |
 | Language | Python 3.10+ |
 
 ---
