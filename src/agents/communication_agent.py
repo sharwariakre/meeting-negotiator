@@ -47,6 +47,6 @@ def communication_agent(state: MeetingState) -> MeetingState:
 
     return {
         **state,
-        "agreed_slot": {"resolution": resolution, "message": response.content},
+        "agreed_slot": {**(state.get("agreed_slot") or {}), "resolution": resolution, "message": response.content},
         "messages": state["messages"] + [response],
     }

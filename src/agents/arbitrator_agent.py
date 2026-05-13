@@ -1,6 +1,7 @@
 import os
 import re
 from collections import defaultdict
+from datetime import datetime
 from typing import Optional
 from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -61,47 +62,75 @@ def compute_overlaps(participants: list[dict], required_minutes: int) -> list[di
     """
     Parse raw availability from participant profiles and return every window
     where ALL participants are free for at least `required_minutes`.
-    Works with any number of participants.
+    Handles both string slots ("Monday 10am-12pm") and dict slots from the
+    calendar API ({"label": ..., "date": "2026-05-19", "start": "09:00", "end": "18:00"}).
     """
-    # Build per-participant map: day → [(start, end), ...]
-    per_participant: list[dict[str, list[tuple[int, int]]]] = []
+    per_participant: list[dict] = []
     for p in participants:
-        by_day: dict[str, list[tuple[int, int]]] = defaultdict(list)
-        for raw in p.get("availability", []):
-            parsed = _parse_window(raw)
-            if parsed:
-                day, start, end = parsed
-                by_day[day].append((start, end))
-        per_participant.append(dict(by_day))
+        by_key: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        key_meta: dict[str, dict] = {}
+        for slot in p.get("availability", []):
+            if isinstance(slot, dict):
+                date_str = slot["date"]
+                start_h = int(slot["start"].split(":")[0])
+                end_h = int(slot["end"].split(":")[0])
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                day_name = dt.strftime("%A")
+                label_prefix = f"{day_name} {dt.strftime('%B')} {dt.day}"
+                by_key[date_str].append((start_h, end_h))
+                key_meta[date_str] = {
+                    "day": day_name,
+                    "date": date_str,
+                    "label_prefix": label_prefix,
+                }
+            else:
+                parsed = _parse_window(slot)
+                if parsed:
+                    day, start, end = parsed
+                    by_key[day].append((start, end))
+                    if day not in key_meta:
+                        key_meta[day] = {
+                            "day": day.capitalize(),
+                            "date": None,
+                            "label_prefix": day.capitalize(),
+                        }
+        per_participant.append({"by_key": dict(by_key), "key_meta": key_meta})
 
     required_hours = required_minutes / 60
     results: list[dict] = []
 
-    # Only check days where every participant has at least one window
-    all_days = set(per_participant[0].keys()) if per_participant else set()
+    all_keys = set(per_participant[0]["by_key"].keys()) if per_participant else set()
     for pp in per_participant[1:]:
-        all_days &= set(pp.keys())
+        all_keys &= set(pp["by_key"].keys())
 
-    for day in sorted(all_days):
-        # Start with first participant's windows, intersect with each next
-        intervals: list[tuple[int, int]] = per_participant[0][day]
+    for key in sorted(all_keys):
+        intervals: list[tuple[int, int]] = per_participant[0]["by_key"][key]
         for pp in per_participant[1:]:
             merged: list[tuple[int, int]] = []
             for s1, e1 in intervals:
-                for s2, e2 in pp[day]:
+                for s2, e2 in pp["by_key"][key]:
                     start, end = max(s1, s2), min(e1, e2)
                     if (end - start) >= required_hours:
                         merged.append((start, end))
             intervals = merged
 
+        meta = per_participant[0]["key_meta"].get(key, {
+            "day": key.capitalize(),
+            "date": None,
+            "label_prefix": key.capitalize(),
+        })
+
         for start, end in intervals:
-            results.append({
-                "day": day.capitalize(),
+            result = {
+                "day": meta["day"],
                 "start": start,
                 "end": end,
-                "label": f"{day.capitalize()} {_fmt_hour(start)}–{_fmt_hour(end)}",
+                "label": f"{meta['label_prefix']} {_fmt_hour(start)}–{_fmt_hour(end)}",
                 "duration_minutes": int((end - start) * 60),
-            })
+            }
+            if meta.get("date"):
+                result["date"] = meta["date"]
+            results.append(result)
 
     return results
 

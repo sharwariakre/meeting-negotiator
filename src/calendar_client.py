@@ -62,10 +62,11 @@ class GoogleCalendarClient:
         end: datetime,
         required_duration_minutes: int,
         working_hours: tuple[int, int] = (9, 18),
-    ) -> list[str]:
+    ) -> list[dict]:
         """
-        Queries the freebusy API and returns free windows as slot strings
-        in the same format as profiles.json ("Monday 10am-12pm").
+        Queries the freebusy API and returns free windows as dicts:
+          {"label": "Tuesday May 19 9am-6pm", "date": "2026-05-19",
+           "start": "09:00", "end": "18:00"}
         Only windows >= required_duration_minutes are returned.
         """
         body = {
@@ -85,7 +86,7 @@ class GoogleCalendarClient:
             for b in busy_raw
         ]
 
-        free_slots: list[str] = []
+        free_slots: list[dict] = []
         current = start.replace(hour=0, minute=0, second=0, microsecond=0)
 
         while current.date() < end.date():
@@ -116,7 +117,13 @@ class GoogleCalendarClient:
 
                 if (end_hour - start_hour) * 60 >= required_duration_minutes:
                     day_name = w_start.strftime("%A")
-                    free_slots.append(f"{day_name} {_fmt_hour(start_hour)}-{_fmt_hour(end_hour)}")
+                    month_day = f"{w_start.strftime('%B')} {w_start.day}"
+                    free_slots.append({
+                        "label": f"{day_name} {month_day} {_fmt_hour(start_hour)}-{_fmt_hour(end_hour)}",
+                        "date": w_start.strftime("%Y-%m-%d"),
+                        "start": f"{start_hour:02d}:00",
+                        "end": f"{end_hour:02d}:00",
+                    })
 
             current += timedelta(days=1)
 
@@ -129,24 +136,30 @@ class GoogleCalendarClient:
         slot_label: str,
         attendee_emails: list[str],
         search_from: datetime,
+        slot_date: str | None = None,
+        slot_start_hour: int | None = None,
+        slot_end_hour: int | None = None,
     ) -> str:
         """
-        Parses a slot label ("Monday 10am-11am") into a concrete datetime,
-        creates a Google Calendar event with all attendees, and returns the
-        event HTML link. Uses search_from to anchor day names to real dates.
+        Creates a Google Calendar event with all attendees and returns the HTML link.
+        When slot_date/slot_start_hour/slot_end_hour are provided they are used directly;
+        otherwise slot_label is parsed and the date is inferred from search_from.
         """
-        # Normalise dashes — compute_overlaps labels use en-dash (–)
-        normalised = slot_label.replace("–", "-").replace("—", "-")
-        parsed = _parse_window(normalised)
-        if not parsed:
-            raise ValueError(f"Cannot parse slot label: {slot_label!r}")
-
-        day_name, start_hour, end_hour = parsed
-
-        # Find the first occurrence of that weekday on or after search_from
-        target_wd = _WEEKDAYS.index(day_name)
-        days_ahead = (target_wd - search_from.weekday()) % 7
-        event_date = (search_from + timedelta(days=days_ahead)).date()
+        if slot_date is not None and slot_start_hour is not None and slot_end_hour is not None:
+            event_date = datetime.strptime(slot_date, "%Y-%m-%d").date()
+            start_hour = slot_start_hour
+            end_hour = slot_end_hour
+        else:
+            # Normalise dashes — compute_overlaps labels use en-dash (–)
+            normalised = slot_label.replace("–", "-").replace("—", "-")
+            parsed = _parse_window(normalised)
+            if not parsed:
+                raise ValueError(f"Cannot parse slot label: {slot_label!r}")
+            day_name, start_hour, end_hour = parsed
+            # Find the first occurrence of that weekday on or after search_from
+            target_wd = _WEEKDAYS.index(day_name)
+            days_ahead = (target_wd - search_from.weekday()) % 7
+            event_date = (search_from + timedelta(days=days_ahead)).date()
 
         tz = search_from.tzinfo
         event_start = datetime(event_date.year, event_date.month, event_date.day, start_hour, tzinfo=tz)
@@ -154,8 +167,8 @@ class GoogleCalendarClient:
 
         body = {
             "summary": title,
-            "start": {"dateTime": event_start.isoformat(), "timeZone": str(tz)},
-            "end": {"dateTime": event_end.isoformat(), "timeZone": str(tz)},
+            "start": {"dateTime": event_start.isoformat()},
+            "end": {"dateTime": event_end.isoformat()},
             "attendees": [{"email": email} for email in attendee_emails],
         }
 

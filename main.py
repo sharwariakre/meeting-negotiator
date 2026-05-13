@@ -11,7 +11,16 @@ load_dotenv()
 
 def load_profiles(path: str) -> dict:
     with open(path, "r") as f:
-        return json.load(f)
+        data = json.load(f)
+    email_overrides = {
+        "A": os.getenv("PARTICIPANT_A_EMAIL"),
+        "B": os.getenv("PARTICIPANT_B_EMAIL"),
+    }
+    for participant in data["participants"]:
+        email = email_overrides.get(participant["id"])
+        if email:
+            participant["email"] = email
+    return data
 
 
 def _fetch_calendar_availability(data: dict) -> dict:
@@ -30,6 +39,7 @@ def _fetch_calendar_availability(data: dict) -> dict:
         client = GoogleCalendarClient(token_path)
 
         slots = client.get_free_slots("primary", search_start, search_end, required)
+        print(f"{participant['name']} real availability from Calendar API: {slots}")
         if not slots:
             print(f"  Warning: no free slots found for {participant['name']} in the next 7 days.")
         else:
@@ -69,6 +79,9 @@ def _create_calendar_event(data: dict, result: dict) -> None:
             slot_label=slot_label,
             attendee_emails=attendee_emails,
             search_from=search_from,
+            slot_date=chosen.get("date"),
+            slot_start_hour=chosen.get("start"),
+            slot_end_hour=chosen.get("end"),
         )
         print(f"Event created: {link}")
     except Exception as e:

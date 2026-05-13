@@ -3,7 +3,7 @@
     {
       "id": "A",
       "name": "Alice",
-      "email": "alice@example.com",
+      "email": "",
       "role": "Engineering Manager",
       "seniority": "senior",
       "context": "Leading the project, has final say on technical direction. Very limited availability due to cross-team commitments.",
@@ -17,7 +17,7 @@
     {
       "id": "B",
       "name": "Bob",
-      "email": "bob@example.com",
+      "email": "",
       "role": "Software Engineer",
       "seniority": "junior",
       "context": "New team member onboarding. Flexible schedule but prefers afternoons for deep work mornings.",

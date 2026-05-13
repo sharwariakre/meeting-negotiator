@@ -46,7 +46,7 @@ def make_preference_agent(participant_id: str) -> Callable[[MeetingState], Meeti
                 f"You are representing: {participant['name']} ({participant['role']}, {participant['seniority']})\n"
                 f"Context: {participant['context']}\n\n"
                 f"Meeting: {meeting['title']} ({meeting['required_duration_minutes']} min)\n\n"
-                f"Availability: {', '.join(participant['availability'])}\n"
+                f"Availability: {', '.join(s['label'] if isinstance(s, dict) else s for s in participant.get('availability', []))}\n"
                 f"Preferred times: {', '.join(participant['preferences']['preferred_times'])}\n"
                 f"Constraints: {', '.join(participant['preferences']['constraints'])}"
                 f"{pressure_block}\n\n"
