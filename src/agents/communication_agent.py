@@ -11,7 +11,9 @@ def communication_agent(state: MeetingState) -> MeetingState:
     status = state.get("status", "consensus")
     resolution = (state.get("agreed_slot") or {}).get("resolution", "No resolution available.")
     names = [p["name"] for p in state.get("participants", [])]
-    meeting_title = state.get("meeting_request", {}).get("title", "the meeting")
+    meeting_request = state.get("meeting_request", {})
+    meeting_title = meeting_request.get("title", "the meeting")
+    duration_minutes = meeting_request.get("required_duration_minutes", 60)
     round_count = state.get("round_count", 0)
 
     if status == "escalated":
@@ -35,9 +37,11 @@ def communication_agent(state: MeetingState) -> MeetingState:
         )
         user_prompt = (
             f"Participants: {', '.join(names)}\n"
-            f"Meeting: {meeting_title}\n"
+            f"Meeting: {meeting_title} ({duration_minutes} min)\n"
             f"Arbitration resolution:\n{resolution}\n\n"
-            "Write a short confirmation message to send to all participants."
+            "Write a short confirmation message to send to all participants. "
+            f"The meeting is {duration_minutes} minutes long — use this duration in your message, "
+            "not any window size mentioned in the resolution."
         )
 
     response = model.invoke([

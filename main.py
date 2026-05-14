@@ -79,9 +79,9 @@ def _create_calendar_event(data: dict, result: dict) -> None:
             slot_label=slot_label,
             attendee_emails=attendee_emails,
             search_from=search_from,
+            duration_minutes=data["meeting"]["required_duration_minutes"],
             slot_date=chosen.get("date"),
             slot_start_hour=chosen.get("start"),
-            slot_end_hour=chosen.get("end"),
         )
         print(f"Event created: {link}")
     except Exception as e:
@@ -102,6 +102,11 @@ def main():
 
     if args.use_calendar:
         data = _fetch_calendar_availability(data)
+        print("\n--- Availability fetched from Google Calendar ---")
+        for p in data["participants"]:
+            print(f"\n{p['name']}:")
+            for slot in p["availability"]:
+                print(f"  {slot['label']}")
 
     initial_state: MeetingState = {
         "messages": [],

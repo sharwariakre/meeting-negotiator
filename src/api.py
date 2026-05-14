@@ -164,9 +164,9 @@ def _negotiate_sync(req: NegotiateRequest) -> dict:
                     slot_label=chosen.get("label", ""),
                     attendee_emails=[p["email"] for p in state_participants],
                     search_from=search_start,
+                    duration_minutes=req.duration_minutes,
                     slot_date=chosen.get("date"),
                     slot_start_hour=chosen.get("start"),
-                    slot_end_hour=chosen.get("end"),
                 )
             except Exception as e:
                 event_link = f"error: {e}"

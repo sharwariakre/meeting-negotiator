@@ -136,26 +136,26 @@ class GoogleCalendarClient:
         slot_label: str,
         attendee_emails: list[str],
         search_from: datetime,
+        duration_minutes: int,
         slot_date: str | None = None,
         slot_start_hour: int | None = None,
-        slot_end_hour: int | None = None,
     ) -> str:
         """
         Creates a Google Calendar event with all attendees and returns the HTML link.
-        When slot_date/slot_start_hour/slot_end_hour are provided they are used directly;
+        Event duration is always exactly duration_minutes from the start of the free window.
+        When slot_date/slot_start_hour are provided they are used directly;
         otherwise slot_label is parsed and the date is inferred from search_from.
         """
-        if slot_date is not None and slot_start_hour is not None and slot_end_hour is not None:
+        if slot_date is not None and slot_start_hour is not None:
             event_date = datetime.strptime(slot_date, "%Y-%m-%d").date()
             start_hour = slot_start_hour
-            end_hour = slot_end_hour
         else:
             # Normalise dashes — compute_overlaps labels use en-dash (–)
             normalised = slot_label.replace("–", "-").replace("—", "-")
             parsed = _parse_window(normalised)
             if not parsed:
                 raise ValueError(f"Cannot parse slot label: {slot_label!r}")
-            day_name, start_hour, end_hour = parsed
+            day_name, start_hour, _ = parsed
             # Find the first occurrence of that weekday on or after search_from
             target_wd = _WEEKDAYS.index(day_name)
             days_ahead = (target_wd - search_from.weekday()) % 7
@@ -163,7 +163,7 @@ class GoogleCalendarClient:
 
         tz = search_from.tzinfo
         event_start = datetime(event_date.year, event_date.month, event_date.day, start_hour, tzinfo=tz)
-        event_end = datetime(event_date.year, event_date.month, event_date.day, end_hour, tzinfo=tz)
+        event_end = event_start + timedelta(minutes=duration_minutes)
 
         body = {
             "summary": title,
